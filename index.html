@@ -158,36 +158,49 @@
     lastTick = { x, y };
     try {
       const a = ac(), t = a.currentTime;
-      if (t - lastTickT < 0.05) return;
+      if (t - lastTickT < 0.07) return;
       lastTickT = t;
-      const o = a.createOscillator(), g = a.createGain();
-      o.connect(g); g.connect(a.destination);
-      o.type = 'sine'; o.frequency.setValueAtTime(320, t);
-      o.frequency.exponentialRampToValueAtTime(180, t + 0.06);
-      g.gain.setValueAtTime(0.028, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-      o.start(t); o.stop(t + 0.08);
+      // Industrial beating — two detuned sines create physical amplitude flutter
+      [52, 54.6].forEach(f => {
+        const o = a.createOscillator(), g = a.createGain();
+        o.connect(g); g.connect(a.destination);
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.072, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        o.start(t); o.stop(t + 0.19);
+      });
     } catch (_) {}
   }
 
   function playClick() {
     try {
       const a = ac(), t = a.currentTime;
-      const o = a.createOscillator(), g = a.createGain();
-      o.connect(g); g.connect(a.destination);
-      o.type = 'sine'; o.frequency.setValueAtTime(140, t);
-      o.frequency.exponentialRampToValueAtTime(28, t + 0.22);
-      g.gain.setValueAtTime(0.3, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      // Steel impact — noise hit + sawtooth scrape + low thud
+      const buf  = a.createBuffer(1, Math.floor(a.sampleRate * 0.06), a.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.18));
+      const src = a.createBufferSource(); src.buffer = buf;
+      const flt = a.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 2200;
+      const gn  = a.createGain(); gn.gain.setValueAtTime(0.28, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      src.connect(flt); flt.connect(gn); gn.connect(a.destination); src.start(t);
+
+      // Sawtooth scrape
+      const o = a.createOscillator(), g2 = a.createGain();
+      o.connect(g2); g2.connect(a.destination);
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t);
+      o.frequency.exponentialRampToValueAtTime(44, t + 0.22);
+      g2.gain.setValueAtTime(0.18, t);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
       o.start(t); o.stop(t + 0.26);
 
-      const o2 = a.createOscillator(), g2 = a.createGain();
-      o2.connect(g2); g2.connect(a.destination);
-      o2.type = 'sine'; o2.frequency.setValueAtTime(2400, t);
-      o2.frequency.exponentialRampToValueAtTime(800, t + 0.08);
-      g2.gain.setValueAtTime(0.06, t);
-      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-      o2.start(t); o2.stop(t + 0.11);
+      // Low industrial thud
+      const o2 = a.createOscillator(), g3 = a.createGain();
+      o2.connect(g3); g3.connect(a.destination);
+      o2.type = 'sine'; o2.frequency.setValueAtTime(80, t);
+      o2.frequency.exponentialRampToValueAtTime(18, t + 0.38);
+      g3.gain.setValueAtTime(0.32, t);
+      g3.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      o2.start(t); o2.stop(t + 0.41);
     } catch (_) {}
   }
 
