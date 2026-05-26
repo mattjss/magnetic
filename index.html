@@ -160,47 +160,67 @@
       const a = ac(), t = a.currentTime;
       if (t - lastTickT < 0.07) return;
       lastTickT = t;
-      // Industrial beating — two detuned sines create physical amplitude flutter
-      [52, 54.6].forEach(f => {
-        const o = a.createOscillator(), g = a.createGain();
-        o.connect(g); g.connect(a.destination);
-        o.type = 'sine'; o.frequency.value = f;
-        g.gain.setValueAtTime(0.072, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-        o.start(t); o.stop(t + 0.19);
-      });
+      // FM field pulse — Y position drives pitch, lower = heavier field
+      const freq = 95 - (my / SZ) * 46;
+      const mod = a.createOscillator(), modG = a.createGain();
+      const osc = a.createOscillator(), outG = a.createGain();
+      mod.frequency.value = freq * 3.14;
+      modG.gain.value = freq * 0.52;
+      mod.connect(modG); modG.connect(osc.frequency);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      osc.connect(outG); outG.connect(a.destination);
+      outG.gain.setValueAtTime(0.001, t);
+      outG.gain.linearRampToValueAtTime(0.10, t + 0.009);
+      outG.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      mod.start(t); osc.start(t);
+      mod.stop(t + 0.23); osc.stop(t + 0.23);
     } catch (_) {}
   }
 
   function playClick() {
     try {
       const a = ac(), t = a.currentTime;
-      // Steel impact — noise hit + sawtooth scrape + low thud
-      const buf  = a.createBuffer(1, Math.floor(a.sampleRate * 0.06), a.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.18));
-      const src = a.createBufferSource(); src.buffer = buf;
-      const flt = a.createBiquadFilter(); flt.type = 'highpass'; flt.frequency.value = 2200;
-      const gn  = a.createGain(); gn.gain.setValueAtTime(0.28, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-      src.connect(flt); flt.connect(gn); gn.connect(a.destination); src.start(t);
 
-      // Sawtooth scrape
-      const o = a.createOscillator(), g2 = a.createGain();
-      o.connect(g2); g2.connect(a.destination);
-      o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t);
-      o.frequency.exponentialRampToValueAtTime(44, t + 0.22);
-      g2.gain.setValueAtTime(0.18, t);
-      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-      o.start(t); o.stop(t + 0.26);
+      // Sub magnetic boom
+      const sub = a.createOscillator(), subG = a.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(52, t);
+      sub.frequency.exponentialRampToValueAtTime(14, t + 0.5);
+      sub.connect(subG); subG.connect(a.destination);
+      subG.gain.setValueAtTime(0.001, t);
+      subG.gain.linearRampToValueAtTime(0.40, t + 0.005);
+      subG.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
+      sub.start(t); sub.stop(t + 0.53);
 
-      // Low industrial thud
-      const o2 = a.createOscillator(), g3 = a.createGain();
-      o2.connect(g3); g3.connect(a.destination);
-      o2.type = 'sine'; o2.frequency.setValueAtTime(80, t);
-      o2.frequency.exponentialRampToValueAtTime(18, t + 0.38);
-      g3.gain.setValueAtTime(0.32, t);
-      g3.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      o2.start(t); o2.stop(t + 0.41);
+      // FM field lines — harmonic spread outward from 82Hz
+      [82, 123, 164, 246, 328].forEach((freq, i) => {
+        const d = i * 0.03;
+        const mod = a.createOscillator(), modG = a.createGain();
+        const carrier = a.createOscillator(), outG = a.createGain();
+        mod.frequency.value = freq * 2.718;
+        modG.gain.value = freq * (0.95 - i * 0.15);
+        mod.connect(modG); modG.connect(carrier.frequency);
+        carrier.type = 'sine'; carrier.frequency.value = freq;
+        carrier.connect(outG); outG.connect(a.destination);
+        const pk = 0.05 - i * 0.008;
+        outG.gain.setValueAtTime(0.001, t + d);
+        outG.gain.linearRampToValueAtTime(pk, t + d + 0.012);
+        outG.gain.exponentialRampToValueAtTime(0.001, t + d + 0.46);
+        mod.start(t + d); carrier.start(t + d);
+        mod.stop(t + d + 0.47); carrier.stop(t + d + 0.47);
+      });
+
+      // EM crackle — HPF noise burst at discharge point
+      const crLen = Math.floor(a.sampleRate * 0.025);
+      const crBuf = a.createBuffer(1, crLen, a.sampleRate);
+      const crData = crBuf.getChannelData(0);
+      for (let i = 0; i < crLen; i++)
+        crData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (crLen * 0.12));
+      const crSrc = a.createBufferSource(); crSrc.buffer = crBuf;
+      const crFlt = a.createBiquadFilter(); crFlt.type = 'highpass'; crFlt.frequency.value = 3500;
+      const crG = a.createGain(); crG.gain.value = 0.35;
+      crSrc.connect(crFlt); crFlt.connect(crG); crG.connect(a.destination);
+      crSrc.start(t);
     } catch (_) {}
   }
 
