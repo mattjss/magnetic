@@ -160,20 +160,15 @@
       const a = ac(), t = a.currentTime;
       if (t - lastTickT < 0.07) return;
       lastTickT = t;
-      // FM field pulse — Y position drives pitch, lower = heavier field
-      const freq = 95 - (my / SZ) * 46;
-      const mod = a.createOscillator(), modG = a.createGain();
-      const osc = a.createOscillator(), outG = a.createGain();
-      mod.frequency.value = freq * 3.14;
-      modG.gain.value = freq * 0.52;
-      mod.connect(modG); modG.connect(osc.frequency);
-      osc.type = 'sine'; osc.frequency.value = freq;
-      osc.connect(outG); outG.connect(a.destination);
-      outG.gain.setValueAtTime(0.001, t);
-      outG.gain.linearRampToValueAtTime(0.10, t + 0.009);
-      outG.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      mod.start(t); osc.start(t);
-      mod.stop(t + 0.23); osc.stop(t + 0.23);
+      // Clean field pulse — Y position drives pitch, lower = deeper
+      const freq = 160 - (my / SZ) * 80;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
+      o.connect(g); g.connect(a.destination);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(0.075, t + 0.011);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.20);
+      o.start(t); o.stop(t + 0.21);
     } catch (_) {}
   }
 
@@ -181,45 +176,40 @@
     try {
       const a = ac(), t = a.currentTime;
 
-      // Sub magnetic boom
+      // Mid-bass magnetic boom — audible on laptop speakers
       const sub = a.createOscillator(), subG = a.createGain();
       sub.type = 'sine';
-      sub.frequency.setValueAtTime(52, t);
-      sub.frequency.exponentialRampToValueAtTime(14, t + 0.5);
+      sub.frequency.setValueAtTime(120, t);
+      sub.frequency.exponentialRampToValueAtTime(30, t + 0.44);
       sub.connect(subG); subG.connect(a.destination);
       subG.gain.setValueAtTime(0.001, t);
-      subG.gain.linearRampToValueAtTime(0.40, t + 0.005);
-      subG.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
-      sub.start(t); sub.stop(t + 0.53);
+      subG.gain.linearRampToValueAtTime(0.34, t + 0.006);
+      subG.gain.exponentialRampToValueAtTime(0.001, t + 0.46);
+      sub.start(t); sub.stop(t + 0.47);
 
-      // FM field lines — harmonic spread outward from 82Hz
-      [82, 123, 164, 246, 328].forEach((freq, i) => {
-        const d = i * 0.03;
-        const mod = a.createOscillator(), modG = a.createGain();
-        const carrier = a.createOscillator(), outG = a.createGain();
-        mod.frequency.value = freq * 2.718;
-        modG.gain.value = freq * (0.95 - i * 0.15);
-        mod.connect(modG); modG.connect(carrier.frequency);
-        carrier.type = 'sine'; carrier.frequency.value = freq;
-        carrier.connect(outG); outG.connect(a.destination);
-        const pk = 0.05 - i * 0.008;
-        outG.gain.setValueAtTime(0.001, t + d);
-        outG.gain.linearRampToValueAtTime(pk, t + d + 0.012);
-        outG.gain.exponentialRampToValueAtTime(0.001, t + d + 0.46);
-        mod.start(t + d); carrier.start(t + d);
-        mod.stop(t + d + 0.47); carrier.stop(t + d + 0.47);
+      // Clean harmonic spread — no FM, just sines
+      [110, 165, 220, 330].forEach((freq, i) => {
+        const d = i * 0.028;
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = 'sine'; o.frequency.value = freq;
+        o.connect(g); g.connect(a.destination);
+        const pk = 0.044 - i * 0.008;
+        g.gain.setValueAtTime(0.001, t + d);
+        g.gain.linearRampToValueAtTime(pk, t + d + 0.014);
+        g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.40);
+        o.start(t + d); o.stop(t + d + 0.41);
       });
 
-      // EM crackle — HPF noise burst at discharge point
-      const crLen = Math.floor(a.sampleRate * 0.025);
+      // EM crackle — HPF noise burst
+      const crLen = Math.floor(a.sampleRate * 0.022);
       const crBuf = a.createBuffer(1, crLen, a.sampleRate);
       const crData = crBuf.getChannelData(0);
       for (let i = 0; i < crLen; i++)
         crData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (crLen * 0.12));
       const crSrc = a.createBufferSource(); crSrc.buffer = crBuf;
-      const crFlt = a.createBiquadFilter(); crFlt.type = 'highpass'; crFlt.frequency.value = 3500;
-      const crG = a.createGain(); crG.gain.value = 0.35;
-      crSrc.connect(crFlt); crFlt.connect(crG); crG.connect(a.destination);
+      const hpf = a.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 3200;
+      const crG = a.createGain(); crG.gain.value = 0.30;
+      crSrc.connect(hpf); hpf.connect(crG); crG.connect(a.destination);
       crSrc.start(t);
     } catch (_) {}
   }
